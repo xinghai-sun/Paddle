@@ -25,11 +25,6 @@ class DropoutOp : public framework::OperatorWithKernel {
 
  protected:
   void InferShape(const framework::InferShapeContext &ctx) const override {
-    // validity check
-    PADDLE_ENFORCE_NOT_NULL(ctx.InputVar("X"), "Input(X) must not be null.");
-    PADDLE_ENFORCE_GE(ctx.GetAttr<float>("dropout_prob"), 0);
-    PADDLE_ENFORCE_LE(ctx.GetAttr<float>("dropout_prob"), 1);
-    // resize
     auto dims = ctx.Input<Tensor>("X")->dims();
     ctx.Output<Tensor>("Out")->Resize(dims);
     ctx.Output<Tensor>("Mask")->Resize(dims);
@@ -42,7 +37,9 @@ class DropoutOpMaker : public framework::OpProtoAndCheckerMaker {
                  framework::OpAttrChecker *op_checker)
       : OpProtoAndCheckerMaker(proto, op_checker) {
     AddAttr<float>("dropout_prob", "Probability for dropping out units.")
-        .SetDefault(.5f);
+        .SetDefault(.5f)
+        .LargerThan(0.0f)
+        .LessThan(1.0f);
     AddAttr<int>("seed", "Dropout random seed.").SetDefault(0);
     AddInput("X", "The input of dropout op.");
     AddOutput("Out", "The output of dropout op.");
@@ -66,13 +63,6 @@ class DropoutOpGrad : public framework::OperatorWithKernel {
 
  protected:
   void InferShape(const framework::InferShapeContext &ctx) const override {
-    // validity check
-    PADDLE_ENFORCE_NOT_NULL(ctx.InputVar("X"), "Input(X) must not be null.");
-    PADDLE_ENFORCE_NOT_NULL(ctx.InputVar("Mask"), "Mask must not be null.");
-    PADDLE_ENFORCE_NOT_NULL(ctx.InputVar(framework::GradVarName("Out")),
-                            "Input(Out@GRAD) must not be null.");
-    PADDLE_ENFORCE_GE(ctx.GetAttr<float>("dropout_prob"), 0);
-    PADDLE_ENFORCE_LE(ctx.GetAttr<float>("dropout_prob"), 1);
     auto x_dims = ctx.Input<Tensor>("X")->dims();
     auto mask_dims = ctx.Input<Tensor>("Mask")->dims();
     auto out_dims = ctx.Input<Tensor>(framework::GradVarName("Out"))->dims();
